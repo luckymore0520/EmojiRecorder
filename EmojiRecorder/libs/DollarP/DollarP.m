@@ -19,40 +19,35 @@ int const DollarPNumPoints = 32;
     DollarResult *result = [[DollarResult alloc] init];
     [result setName:@"No match"];
     [result setScore:0.0];
-    NSMutableArray *resultArray = [[NSMutableArray alloc] initWithCapacity:self.pointClouds.count];
-
     if ([points count] == 0) {
-        return resultArray;
+        return [NSArray array];
     }
-    
+    NSMutableDictionary *dic = [[NSMutableDictionary alloc] init];
+
     points = [[self class] resample:points numPoints:DollarPNumPoints];
     points = [[self class] scale:points];
     points = [[self class] translate:points to:[DollarPoint origin]];
     
-//    float b = +INFINITY;
-//    int u = -1;
     for (int i = 0; i < [[self pointClouds] count]; i++) {
         float d = [[self class] greedyCloudMatch:points
                                         template:[[self pointClouds][i] points]];
-        DollarResult *result = [[DollarResult alloc] init];
-        [result setName:[[self pointClouds][i] name]];
-        [result setScore:d];
-        
-        [resultArray addObject:result];
-//        if (d < b) {
-//            b = d;
-//            u = i;
-//        }
+        NSString *name = [[self pointClouds][i] name];
+        DollarResult *result = dic[name];
+        if (!result) {
+            result = [[DollarResult alloc] init];
+            [result setName:name];
+            [result setScore:d];
+        } else {
+            [result setScore:MIN(d,result.score)];
+        }
+        dic[name] = result;
     }
+    NSMutableArray *resultArray = [[NSMutableArray alloc] initWithArray:dic.allValues];
+    
     [resultArray sortUsingComparator:^NSComparisonResult(DollarResult *  _Nonnull obj1, DollarResult *    _Nonnull obj2) {
         return [obj1 score] > [obj2 score];
     }];
     
-//    if (u != -1) {
-//        [result setName:[[self pointClouds][u] name]];
-//        [result setScore:MAX((b - 2.0f) / -2.0f, 0.0f)];
-//    }
-//    
     return resultArray;
 }
 
@@ -69,7 +64,7 @@ int const DollarPNumPoints = 32;
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     NSDictionary *savedDic = [defaults objectForKey:@"emoji3"];
     NSMutableDictionary *dic = nil;
-    if (!dic) {
+    if (!savedDic) {
         dic = [[NSMutableDictionary alloc] init];
     } else {
         dic = [NSMutableDictionary dictionaryWithDictionary:savedDic];
